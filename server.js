@@ -1,23 +1,29 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const Todo = require('./models/Todo');
 const pool = require('./config/database');
+const { requireAuth, optionalAuth } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Routes
 
-// GET /to-do - Get all todos
-app.get('/to-do', async (req, res) => {
+// GET /to-do - Get all todos (requires authentication)
+app.get('/to-do', requireAuth, async (req, res) => {
   try {
     const todos = await Todo.getAll();
     const count = await Todo.getCount();
@@ -37,8 +43,8 @@ app.get('/to-do', async (req, res) => {
   }
 });
 
-// GET /to-do/:id - Get a specific todo
-app.get('/to-do/:id', async (req, res) => {
+// GET /to-do/:id - Get a specific todo (requires authentication)
+app.get('/to-do/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     
@@ -72,8 +78,8 @@ app.get('/to-do/:id', async (req, res) => {
   }
 });
 
-// POST /to-do - Create a new todo
-app.post('/to-do', async (req, res) => {
+// POST /to-do - Create a new todo (requires authentication)
+app.post('/to-do', requireAuth, async (req, res) => {
   try {
     const { title, description, completed = false } = req.body;
     
@@ -105,8 +111,8 @@ app.post('/to-do', async (req, res) => {
   }
 });
 
-// PUT /to-do/:id - Update a todo
-app.put('/to-do/:id', async (req, res) => {
+// PUT /to-do/:id - Update a todo (requires authentication)
+app.put('/to-do/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { title, description, completed } = req.body;
@@ -156,8 +162,8 @@ app.put('/to-do/:id', async (req, res) => {
   }
 });
 
-// DELETE /to-do/:id - Delete a todo
-app.delete('/to-do/:id', async (req, res) => {
+// DELETE /to-do/:id - Delete a todo (requires authentication)
+app.delete('/to-do/:id', requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     
@@ -192,18 +198,42 @@ app.delete('/to-do/:id', async (req, res) => {
   }
 });
 
+// GET /user - Get current user info (requires authentication)
+app.get('/user', requireAuth, (req, res) => {
+  res.json({
+    success: true,
+    message: 'User information retrieved',
+    data: {
+      user: req.user
+    }
+  });
+});
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   try {
     // Test database connection
     await pool.query('SELECT 1');
     
+    // Test auth service connection
+    let authServiceStatus = 'unknown';
+    try {
+      const axios = require('axios');
+      const authResponse = await axios.get(`${process.env.AUTH_SERVICE_URL || 'http://localhost:3001'}/health`, {
+        timeout: 3000
+      });
+      authServiceStatus = authResponse.data.success ? 'connected' : 'error';
+    } catch (error) {
+      authServiceStatus = 'disconnected';
+    }
+    
     res.json({
       success: true,
       message: 'Todo service is running',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      database: 'connected'
+      database: 'connected',
+      authService: authServiceStatus
     });
   } catch (error) {
     res.status(503).json({
@@ -212,6 +242,7 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       database: 'disconnected',
+      authService: 'unknown',
       error: error.message
     });
   }
@@ -224,11 +255,12 @@ app.get('/', (req, res) => {
     message: 'Todo Microservice API',
     version: '1.0.0',
     endpoints: {
-      'GET /to-do': 'Get all todos',
-      'GET /to-do/:id': 'Get a specific todo',
-      'POST /to-do': 'Create a new todo',
-      'PUT /to-do/:id': 'Update a todo',
-      'DELETE /to-do/:id': 'Delete a todo',
+      'GET /to-do': 'Get all todos (requires auth)',
+      'GET /to-do/:id': 'Get a specific todo (requires auth)',
+      'POST /to-do': 'Create a new todo (requires auth)',
+      'PUT /to-do/:id': 'Update a todo (requires auth)',
+      'DELETE /to-do/:id': 'Delete a todo (requires auth)',
+      'GET /user': 'Get current user info (requires auth)',
       'GET /health': 'Health check'
     }
   });
