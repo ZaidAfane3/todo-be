@@ -7,6 +7,7 @@ require('dotenv').config();
 const Todo = require('./models/Todo');
 const pool = require('./config/database');
 const { requireAuth, optionalAuth } = require('./middleware/auth');
+const { generateTodoSuggestions } = require('./services/llmService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +40,40 @@ app.get('/to-do', requireAuth, async (req, res) => {
       success: false,
       message: 'Internal server error',
       error: error.message
+    });
+  }
+});
+
+// GET /to-do/suggestions - Suggest new todos using the last three todos (requires authentication)
+app.get('/to-do/suggestions', requireAuth, async (req, res) => {
+  try {
+    const recentTodos = await Todo.getRecent(3);
+
+    if (!recentTodos.length) {
+      return res.json({
+        success: true,
+        message: 'Not enough todos to generate suggestions yet.',
+        data: {
+          suggestions: [],
+        },
+      });
+    }
+
+    const suggestions = await generateTodoSuggestions(recentTodos);
+
+    res.json({
+      success: true,
+      message: 'Todo suggestions generated successfully',
+      data: {
+        suggestions,
+      },
+    });
+  } catch (error) {
+    console.error('Error generating todo suggestions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Unable to generate todo suggestions',
+      error: error.message,
     });
   }
 });
@@ -256,6 +291,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       'GET /to-do': 'Get all todos (requires auth)',
+      'GET /to-do/suggestions': 'Generate todo suggestions from recent items (requires auth)',
       'GET /to-do/:id': 'Get a specific todo (requires auth)',
       'POST /to-do': 'Create a new todo (requires auth)',
       'PUT /to-do/:id': 'Update a todo (requires auth)',
