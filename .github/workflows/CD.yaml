@@ -1,0 +1,51 @@
+name: CD
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  IMAGE_NAME: be-service
+  GCP_PROJECT_ID: personal-473312
+  ZONE: us-central1
+  GCP_REPO_NAME: microservice
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set Global Variables
+        run: |
+          echo "REPO=${{ env.ZONE }}-docker.pkg.dev" >> $GITHUB_ENV
+          echo "IMAGE=${{ env.ZONE }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GCP_REPO_NAME }}/${{ env.IMAGE_NAME }}" >> $GITHUB_ENV
+          echo "TAG=${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Build 
+        run: |
+          docker build -t ${{ env.IMAGE }}:${{ env.TAG }} .
+          docker images
+
+      # - name: Install Trivy
+      #   run: |
+      #     curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      # - name: Test Trivy
+      #   run: |
+      #     trivy image --severity MEDIUM,HIGH,CRITICAL --exit-code 1 ${{ env.IMAGE }}:${{ env.TAG }}
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REPO }} --quiet
+
+
+
+      - name: Push to GCP
+        run: |
+          docker push ${{ env.IMAGE }}:${{ env.TAG }}
