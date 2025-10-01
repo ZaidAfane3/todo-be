@@ -58,6 +58,9 @@ A Node.js microservice that exposes a REST API for managing todo items persisted
    PORT=3000
    NODE_ENV=development
    AUTH_SERVICE_URL=http://localhost:3001  # optional override
+   LLM_API_BASE_URL=https://api.openai.com/v1  # base URL for OpenAI-compatible API
+   LLM_API_KEY=                            # optional API key if the provider requires auth
+   LLM_SUGGESTION_MODEL=gpt-3.5-turbo      # model used for todo suggestions
    ```
 
    - `AUTH_SERVICE_URL` is read by the auth middleware and health check. If omitted, `http://localhost:3001` is used.
@@ -121,6 +124,7 @@ For multi-architecture builds, use `./build-docker.sh <tag>` to build amd64/arm6
 | GET | `/health` | Health status including DB and auth connectivity |
 | GET | `/to-do` | Retrieve all todos (requires auth) |
 | GET | `/to-do/:id` | Retrieve a single todo by ID (requires auth) |
+| GET | `/to-do/suggestions` | Generate suggested todos based on the three most recent items (requires auth) |
 | POST | `/to-do` | Create a new todo (requires auth) |
 | PUT | `/to-do/:id` | Update an existing todo (requires auth) |
 | DELETE | `/to-do/:id` | Delete a todo (requires auth) |

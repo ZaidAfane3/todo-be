@@ -26,6 +26,19 @@ class Todo {
     }
   }
 
+  // Get most recent todos with optional limit
+  static async getRecent(limit = 3) {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM todos ORDER BY created_at DESC LIMIT $1',
+        [limit]
+      );
+      return result.rows;
+    } catch (error) {
+      throw new Error(`Error fetching recent todos: ${error.message}`);
+    }
+  }
+
   // Create new todo
   static async create(title, description = null, completed = false) {
     try {
