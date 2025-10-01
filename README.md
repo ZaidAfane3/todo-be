@@ -2,6 +2,8 @@
 
 A simple REST API microservice for managing todos with PostgreSQL persistence, built for DevOps technical assessment.
 
+Code is Developed By Cursor
+
 ## Features
 
 - CRUD operations for todos
