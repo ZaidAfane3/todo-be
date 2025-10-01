@@ -60,12 +60,7 @@ jobs:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GH_PAT }}
           path: gitops
-
-      - name: Set up kustomize
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-
+          
       - name: Update GitOps
         env:
           IMAGE: ${{ needs.build-and-push.outputs.image }}
