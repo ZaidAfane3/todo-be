@@ -60,7 +60,7 @@ jobs:
           repository: ${{ env.GITOPS_REPO }}
           token: ${{ secrets.GH_PAT }}
           path: gitops
-          
+
       - name: Update GitOps
         env:
           IMAGE: ${{ needs.build-and-push.outputs.image }}
@@ -70,7 +70,7 @@ jobs:
           GITOPS_PATH: ${{ env.GITOPS_PATH }}
         run: |
           cd gitops
-          sed -i "s|\(image: .*\)/.*|\1/${IMAGE##*/}:$NEW_TAG|" ./infra-repo/k8s/todo/${GITOPS_PATH}/deployment.yaml
+          sed -i "s|\(image: .*\)/.*|\1/${IMAGE##*/}:$NEW_TAG|" ./gitops/k8s/todo/${GITOPS_PATH}/deployment.yaml
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"
           git commit -am "Update image tag to $NEW_TAG from run #${{ github.run_number }}"
