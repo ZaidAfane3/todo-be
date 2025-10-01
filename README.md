@@ -1,240 +1,187 @@
 # Todo Microservice
 
-A simple REST API microservice for managing todos with PostgreSQL persistence, built for DevOps technical assessment.
-
-Code is Developed By Cursor
+A Node.js microservice that exposes a REST API for managing todo items persisted in PostgreSQL. The service includes a lightweight migration runner, database health checks, and integrates with an external authentication service via session cookies.
 
 ## Features
 
-- CRUD operations for todos
-- PostgreSQL database persistence
-- RESTful API design
-- Error handling
-- Health check endpoint with database connectivity
-- Database migrations
-- Connection pooling
+- Express-based REST API for CRUD operations on todos
+- PostgreSQL connection pooling with environment-driven configuration
+- Database migration runner with status reporting and rollbacks
+- Health endpoint that reports database and auth-service connectivity
+- Middleware for validating authenticated sessions through a companion auth service
+- Ready-to-use npm scripts for local development, database setup, and Docker packaging
 
-## API Endpoints
+## Tech Stack
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | API documentation |
-| GET | `/health` | Health check |
-| GET | `/to-do` | Get all todos |
-| GET | `/to-do/:id` | Get specific todo |
-| POST | `/to-do` | Create new todo |
-| PUT | `/to-do/:id` | Update todo |
-| DELETE | `/to-do/:id` | Delete todo |
+- **Runtime:** Node.js 18+ (works with Node 14+, but latest LTS recommended)
+- **Framework:** Express 4
+- **Database:** PostgreSQL 12+
+- **Auth Integration:** External HTTP auth service checked via `AUTH_SERVICE_URL`
 
-## Request/Response Examples
+## Project Structure
 
-### Create Todo
-```bash
-POST /to-do
-Content-Type: application/json
-
-{
-  "title": "Learn DevOps",
-  "description": "Study containerization, orchestration, and CI/CD pipelines",
-  "completed": false
-}
 ```
-
-### Update Todo
-```bash
-PUT /to-do/1
-Content-Type: application/json
-
-{
-  "title": "Learn DevOps - Updated",
-  "description": "Master Docker, Kubernetes, and Jenkins for production deployment",
-  "completed": true
-}
+.
+├── config/             # Database pool configuration
+├── middleware/         # Authentication middleware
+├── migrations/         # SQL migrations and rollback files
+├── models/             # Data-access layer (Todo model)
+├── scripts/            # CLI utilities (setup-db, migrate)
+├── server.js           # Express application entry point
+├── env.example         # Sample environment configuration
+├── build-docker.sh     # Helper for building multi-arch Docker images
+└── package.json        # Dependencies and npm scripts
 ```
 
 ## Prerequisites
 
-- Node.js (v14 or higher)
-- PostgreSQL (v12 or higher)
+1. **Node.js** – install from [nodejs.org](https://nodejs.org/) (use the latest LTS).
+2. **PostgreSQL** – install locally or provision in the cloud.
+3. **Auth service (optional for dev)** – endpoints such as `/is-logged-in` and `/health` are expected at `AUTH_SERVICE_URL`. For local development you can stub this service or adjust the middleware.
+
+## Configuration
+
+1. Copy the example environment file and adjust it for your setup:
+
+   ```bash
+   cp env.example .env
+   ```
+
+2. Update `.env` with database credentials and optional overrides:
+
+   ```dotenv
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=todo_db
+   DB_USER=postgres
+   DB_PASSWORD=password
+   PORT=3000
+   NODE_ENV=development
+   AUTH_SERVICE_URL=http://localhost:3001  # optional override
+   ```
+
+   - `AUTH_SERVICE_URL` is read by the auth middleware and health check. If omitted, `http://localhost:3001` is used.
 
 ## Database Setup
 
-1. **Install PostgreSQL** (if not already installed):
-   - macOS: `brew install postgresql`
-   - Ubuntu: `sudo apt-get install postgresql postgresql-contrib`
-   - Windows: Download from [postgresql.org](https://www.postgresql.org/download/)
+1. Create a PostgreSQL database and user (example values shown below):
 
-2. **Create database**:
-```sql
-CREATE DATABASE todo_db;
-CREATE USER postgres WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE todo_db TO postgres;
-```
+   ```sql
+   CREATE DATABASE todo_db;
+   CREATE USER postgres WITH PASSWORD 'password';
+   GRANT ALL PRIVILEGES ON DATABASE todo_db TO postgres;
+   ```
 
-3. **Configure environment variables**:
-```bash
-# Copy the example environment file
-cp .env.example .env
+2. Install Node dependencies and run the migrations:
 
-# Edit .env with your database credentials
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=todo_db
-DB_USER=postgres
-DB_PASSWORD=password
-```
+   ```bash
+   npm install
+   npm run migrate         # or npm run setup-db to ensure migrations table and run migrations
+   ```
 
-## Getting Started
+   The migration runner stores execution metadata in the `migrations` table and supports rollbacks.
 
-1. **Install dependencies**:
-```bash
-npm install
-```
+## Running the Service
 
-2. **Setup database**:
-```bash
-npm run setup-db
-# OR use the new migration system
-npm run migrate
-```
-
-3. **Start the service**:
-```bash
-npm start
-```
-
-4. **For development with auto-reload**:
-```bash
-npm run dev
-```
-
-The service will run on `http://localhost:3000`
-
-## Database Migrations
-
-This project now includes a proper database migration system similar to Prisma:
-
-### Migration Commands
+### Local development
 
 ```bash
-# Run all pending migrations
-npm run migrate
-
-# Check migration status
-npm run migrate:status
-
-# Rollback last migration
-npm run migrate:rollback
-
-# Rollback specific migration version
-npm run migrate:rollback:version 001
+npm run dev   # start with nodemon and live reload
 ```
 
-### Migration Features
-
-- ✅ **Version tracking** - Each migration has a unique version number
-- ✅ **State management** - Tracks which migrations have been executed
-- ✅ **Rollback support** - Can undo migrations with rollback files
-- ✅ **Checksum validation** - Ensures migration integrity
-- ✅ **Transaction safety** - Migrations run in database transactions
-- ✅ **Status reporting** - Shows which migrations are pending/executed
-
-### Migration File Structure
-
-```
-migrations/
-├── 000_create_migrations_table.sql          # Migration tracking table
-├── 001_create_todos_table.sql               # Create todos table
-├── 001_create_todos_table_rollback.sql      # Rollback for todos table
-├── 002_add_description_field.sql            # Add description field
-└── 002_add_description_field_rollback.sql   # Rollback for description field
-```
-
-## Docker Setup
-
-### Using Docker Compose (Recommended)
-
-1. **Start all services** (PostgreSQL + Todo API):
-```bash
-# Production setup
-docker-compose up -d
-
-# Development setup with hot reload
-docker-compose -f docker-compose.dev.yml up
-```
-
-2. **Stop services**:
-```bash
-docker-compose down
-```
-
-3. **View logs**:
-```bash
-docker-compose logs -f todo-api
-```
-
-### Using Docker Commands
-
-1. **Build the image**:
-```bash
-npm run docker:build
-```
-
-2. **Run with environment file**:
-```bash
-npm run docker:run
-```
-
-### Docker Services
-
-- **PostgreSQL Database**: `localhost:5432`
-- **Todo API**: `localhost:3000`
-- **Health Check**: `http://localhost:3000/health`
-
-## Testing the API
-
-You can test the API using curl:
+### Production-style start
 
 ```bash
-# Get all todos
-curl http://localhost:3000/to-do
+npm start     # start once using node server.js
+```
 
-# Create a new todo
+The API listens on `http://localhost:3000` (configurable via the `PORT` environment variable).
+
+### Useful npm scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run migrate` | Apply pending migrations |
+| `npm run migrate:status` | Show executed vs pending migrations |
+| `npm run migrate:rollback` | Roll back the last executed migration |
+| `npm run migrate:rollback:version <version>` | Roll back a specific migration version |
+| `npm run setup-db` | Shortcut that connects to the DB and runs migrations |
+| `npm run docker:build` | Build the Docker image tagged `todo-service` |
+| `npm run docker:run` | Run the built image locally using `.env` |
+
+For multi-architecture builds, use `./build-docker.sh <tag>` to build amd64/arm64 variants and push to the configured registry.
+
+## API Overview
+
+> **Authentication:** All todo routes require a valid `sessionId` cookie that the auth middleware verifies against the auth service. Include `Cookie: sessionId=<token>` in requests or adjust the middleware for local testing.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API metadata and endpoint listing |
+| GET | `/health` | Health status including DB and auth connectivity |
+| GET | `/to-do` | Retrieve all todos (requires auth) |
+| GET | `/to-do/:id` | Retrieve a single todo by ID (requires auth) |
+| POST | `/to-do` | Create a new todo (requires auth) |
+| PUT | `/to-do/:id` | Update an existing todo (requires auth) |
+| DELETE | `/to-do/:id` | Delete a todo (requires auth) |
+| GET | `/user` | Returns authenticated user information |
+
+### Example Requests
+
+Fetch all todos while forwarding a session cookie:
+
+```bash
+curl http://localhost:3000/to-do \
+  -H "Cookie: sessionId=example-session" | jq
+```
+
+Create a todo:
+
+```bash
 curl -X POST http://localhost:3000/to-do \
   -H "Content-Type: application/json" \
-  -d '{"title": "Test todo", "description": "This is a test todo item", "completed": false}'
-
-# Get a specific todo
-curl http://localhost:3000/to-do/1
-
-# Update a todo
-curl -X PUT http://localhost:3000/to-do/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Updated todo", "description": "Updated description for the todo", "completed": true}'
-
-# Delete a todo
-curl -X DELETE http://localhost:3000/to-do/1
+  -H "Cookie: sessionId=example-session" \
+  -d '{
+    "title": "Learn DevOps",
+    "description": "Study containerization, orchestration, and CI/CD pipelines",
+    "completed": false
+  }'
 ```
 
-## Environment Variables
+### Response Format
 
-- `PORT`: Server port (default: 3000)
-- `DB_HOST`: Database host (default: localhost)
-- `DB_PORT`: Database port (default: 5432)
-- `DB_NAME`: Database name (default: todo_db)
-- `DB_USER`: Database user (default: postgres)
-- `DB_PASSWORD`: Database password (default: password)
-- `NODE_ENV`: Environment (development/production)
-
-## Response Format
-
-All responses follow this format:
+All endpoints return JSON with the following shape:
 
 ```json
 {
-  "success": true|false,
-  "message": "Description",
-  "data": {...},
-  "error": "Error message (if any)"
+  "success": true,
+  "message": "Optional status message",
+  "data": {},
+  "error": "Error details when success=false"
 }
 ```
+
+### Health Check
+
+The `/health` endpoint pings the database and auth service:
+
+```json
+{
+  "success": true,
+  "message": "Todo service is running",
+  "timestamp": "2024-01-01T12:00:00.000Z",
+  "uptime": 42.123,
+  "database": "connected",
+  "authService": "connected"
+}
+```
+
+## Troubleshooting
+
+- **Auth service unavailable:** Requests to todo endpoints will return `401` or `503`. Set `AUTH_SERVICE_URL` to a reachable stub during development or temporarily bypass the middleware.
+- **Database connection errors:** Ensure PostgreSQL is running and reachable from the service host. Double-check credentials in `.env`.
+- **Migrations already applied:** The runner tracks checksums. If you modify a migration that has already run, create a new migration instead of editing the old file.
+
+## License
+
+MIT
