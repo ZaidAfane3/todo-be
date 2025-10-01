@@ -9,9 +9,11 @@ env:
   GCP_PROJECT_ID: personal-473312
   ZONE: us-central1
   GCP_REPO_NAME: microservice
+  GITOPS_REPO: ZaidAfane3/todo-infra
+  GITOPS_PATH: todo-be
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -44,8 +46,32 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REPO }} --quiet
 
-
-
       - name: Push to GCP
         run: |
           docker push ${{ env.IMAGE }}:${{ env.TAG }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.GITOPS_REPO }}
+          token: ${{ secrets.GH_PAT }}
+          path: gitops
+
+      - name: Update GitOps
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          NEW_TAG: ${{ needs.build-and-push.outputs.tag }}
+          GIT_AUTHOR_NAME: ${{ github.actor }}
+          GIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
+          GITOPS_PATH: ${{ env.GITOPS_PATH }}
+        run: |
+          cd gitops
+          sed -i "s|\(image: .*\)/.*|\1/${IMAGE##*/}:$NEW_TAG|" ./gitops/k8s/todo/${GITOPS_PATH}/deployment.yaml
+          git config user.name "${GIT_AUTHOR_NAME}"
+          git config user.email "${GIT_AUTHOR_EMAIL}"
+          git commit -am "Update image tag to $NEW_TAG from run #${{ github.run_number }}"
+          git push origin main
