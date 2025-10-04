@@ -23,28 +23,8 @@ app.use(cookieParser());
 
 // Routes
 
-// GET /to-do - Get all todos (requires authentication)
-app.get('/to-do', requireAuth, async (req, res) => {
-  try {
-    const todos = await Todo.getAll();
-    const count = await Todo.getCount();
-    
-    res.json({
-      success: true,
-      data: todos,
-      count: count
-    });
-  } catch (error) {
-    console.error('Error fetching todos:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-});
-
 // GET /to-do/suggestions - Suggest new todos using the last three todos (requires authentication)
+// IMPORTANT: This route MUST come before /to-do/:id to avoid matching "suggestions" as an ID
 app.get('/to-do/suggestions', requireAuth, async (req, res) => {
   try {
     const recentTodos = await Todo.getRecent(3);
@@ -74,6 +54,27 @@ app.get('/to-do/suggestions', requireAuth, async (req, res) => {
       success: false,
       message: 'Unable to generate todo suggestions',
       error: error.message,
+    });
+  }
+});
+
+// GET /to-do - Get all todos (requires authentication)
+app.get('/to-do', requireAuth, async (req, res) => {
+  try {
+    const todos = await Todo.getAll();
+    const count = await Todo.getCount();
+    
+    res.json({
+      success: true,
+      data: todos,
+      count: count
+    });
+  } catch (error) {
+    console.error('Error fetching todos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });
@@ -290,8 +291,8 @@ app.get('/', (req, res) => {
     message: 'Todo Microservice API',
     version: '1.0.0',
     endpoints: {
-      'GET /to-do': 'Get all todos (requires auth)',
       'GET /to-do/suggestions': 'Generate todo suggestions from recent items (requires auth)',
+      'GET /to-do': 'Get all todos (requires auth)',
       'GET /to-do/:id': 'Get a specific todo (requires auth)',
       'POST /to-do': 'Create a new todo (requires auth)',
       'PUT /to-do/:id': 'Update a todo (requires auth)',
